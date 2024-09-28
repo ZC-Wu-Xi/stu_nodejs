@@ -180,3 +180,7 @@ appendFile 作用是在**文件尾部追加内容**，appendFile 语法与 write
 返回值： 二者都为 undefined
 
 实例代码：
+
+```js
+```
+
