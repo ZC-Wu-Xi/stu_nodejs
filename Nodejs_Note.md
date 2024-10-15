@@ -13,8 +13,6 @@ Node.js 是一个开源的、跨平台的 JavaScript 运行时环境。
 
 使用`node 文件名`在命令行运行js代码
 
-![image-20240928142857777](./Nodejs_NoteImg/image-20240928142857777.png)
-
 注意事项
 
 - Node.js中不能使用BOM和DOM的API,可以使用console和定时器API
@@ -761,9 +759,9 @@ files.forEach(item => {
 
 ```
 
-## 三. path模块
+## 三. path(操作路径)模块
 
-path 模块提供了 操作路径 的功能，我们将介绍如下几个较为常用的几个 API：  
+path 模块提供了操作路径的功能，我们将介绍如下几个较为常用的几个 API：  
 
 | API              | 说明                     |
 | ---------------- | ------------------------ |
@@ -830,6 +828,8 @@ HTTP（hypertext transport protocol）协议；中文叫**超文本传输协议*
 
 ### 2. 请求报文的组成
 
+![image-20241015174628158](./Nodejs_NoteImg/image-20241015174628158.png)
+
 - 请求行
 - 请求头
 - 空行
@@ -852,14 +852,81 @@ HTTP（hypertext transport protocol）协议；中文叫**超文本传输协议*
 
 **常见的请求头有：**
 
-| 请求头                  | 解释                                                         |
-| ----------------------- | ------------------------------------------------------------ |
-| Host                    | 主机名                                                       |
-| Connection              | 连接的设置 keep-alive（保持连接）；close（关闭连接）         |
-| Cache-Control           | 缓存控制 max-age = 0 （没有缓存）                            |
-| UpgradeInsecureRequests | 将网页中的http请求转化为https请求（很少用）老网站升级        |
-| User-Agent              | 用户代理，客户端字符串标识，服务器可以通过这个标识来识别这个请求来自哪个客户端 ，一般在PC端和手机端的区分 |
-| Accept                  | 设置浏览器接收的数据类型                                     |
-| Accept-Encoding         | 设置接收的压缩方式                                           |
-| AcceptLanguage          | 设置接收的语言 q=0.7 为喜好系数，满分为1                     |
-| Cookie                  | 后面单独讲                                                   |
+| 请求头                    | 解释                                                         |
+| ------------------------- | ------------------------------------------------------------ |
+| `Host`                    | 主机名                                                       |
+| `Connection`              | 连接的设置 keep-alive（保持连接）；close（关闭连接）         |
+| `Cache-Control`           | 缓存控制 max-age = 0 （没有缓存）                            |
+| `UpgradeInsecureRequests` | 将网页中的http请求转化为https请求（很少用）老网站升级        |
+| `User-Agent`              | 用户代理，客户端字符串标识，服务器可以通过这个标识来识别这个请求来自哪个客户端 ，一般在PC端和手机端的区分 |
+| `Accept`                  | 设置浏览器接收的数据类型                                     |
+| `Accept-Encoding`         | 设置接收的压缩方式                                           |
+| `AcceptLanguage`          | 设置接收的语言 q=0.7 为喜好系数，满分为1                     |
+| `Cookie`                  | 后面单独讲                                                   |
+
+### 5. HTTP 的请求体
+
+请求体内容的格式是非常灵活的， 
+
+- （可以是空）=\=> GET请求
+- （也可以是字符串，还可以是JSON）=\=> POST请求
+
+例如：
+
+- 字符串：`keywords=手机&price=2000`
+- JSON：`{"keywords":"手机","price":2000}`
+
+### 6. 响应报文的组成
+
+![image-20241015174901599](./Nodejs_NoteImg/image-20241015174901599.png)
+
+**响应行：**
+
+```shell
+HTTP/1.1 200 OK
+```
+
+- `HTTP/1.1`：HTTP协议版本号
+- `200`：响应状态码 `404` Not Found, `500` Internal Server Error
+  还有一些状态码，参考：https://developer.mozilla.org/zh-CN/docs/Web/HTTP/Status 
+- `OK`：响应状态描述
+
+> 响应状态码和响应字符串关系是一一对应的。
+
+**响应头：**
+
+```shell
+Cache-Control:缓存控制 private 私有的，只允许客户端缓存数据
+Connection 链接设置
+Content-Type:text/html;charset=utf-8 设置响应体的数据类型以及字符集,响应体为html，字符集
+utf-8
+Content-Length:响应体的长度，单位为字节
+```
+
+- 空行
+- 响应体
+
+响应体内容的类型是非常灵活的，常见的类型有 HTML、CSS、JS、图片、JSON
+
+### 7. 创建 HTTP 服务
+
+使用 nodejs 创建 HTTP 服务
+
+#### 7.1 操作步骤
+
+```js
+//1. 导入 http 模块
+const http = require('http');
+//2. 创建服务对象 create 创建 server 服务
+// request 意为请求. 是对请求报文的封装对象, 通过 request 对象可以获得请求报文的数据
+// response 意为响应. 是对响应报文的封装对象, 通过 response 对象可以设置响应报文
+const server = http.createServer((request, response) => {
+response.end('Hello HTTP server');
+});
+//3. 监听端口, 启动服务
+server.listen(9000, () => {
+console.log('服务已经启动, 端口 9000 监听中...');
+});
+```
+
+> http.createServer 里的回调函数的执行时机： 当接收到 HTTP 请求的时候，就会执行  
