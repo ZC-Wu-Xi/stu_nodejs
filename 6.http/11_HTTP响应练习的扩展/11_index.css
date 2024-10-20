@@ -1,0 +1,18 @@
+td {
+    padding: 20px 40px;
+}
+
+/* 所有的奇数行 */
+table tr:nth-child(odd) {
+    background: #aef;
+}
+
+/* 所有的偶数行 */
+table tr:nth-child(even) {
+    background: #fcb;
+}
+
+table,
+td {
+    border-collapse: collapse
+}

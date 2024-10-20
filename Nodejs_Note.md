@@ -921,7 +921,9 @@ const http = require('http');
 // request 意为请求. 是对请求报文的封装对象, 通过 request 对象可以获得请求报文的数据
 // response 意为响应. 是对响应报文的封装对象, 通过 response 对象可以设置响应报文
 const server = http.createServer((request, response) => {
-response.end('Hello HTTP server');
+	response.setHeader('content-type','text/html;charset=utf-8'); // 防止中文乱码
+    response.end('你好，欸嘿嘿'); // 设置响应体并结束响应
+
 });
 //3. 监听端口, 启动服务
 server.listen(9000, () => {
@@ -929,4 +931,585 @@ console.log('服务已经启动, 端口 9000 监听中...');
 });
 ```
 
-> http.createServer 里的回调函数的执行时机： 当接收到 HTTP 请求的时候，就会执行  
+> http.createServer 里的回调函数的执行时机： **当接收到 HTTP 请求的时候，就会执行**  
+
+#### 7.2 测试
+
+浏览器请求对应端口：http://127.0.0.1:9000  
+
+#### 7.3 注意事项
+
+1. 命令行`ctrl + c `停止服务
+
+2. 当服务启动后，若更新代码，**必须重启服务才能生效**
+
+3. 响应内容中文乱码的解决办法
+   ```java
+   response.setHeader('content-type','text/html;charset=utf-8');
+   ```
+
+4.  端口号被占用
+   ```shell
+   Error: listen EADDRINUSE: address already in use :::9000
+   ```
+
+   - 关闭当前正在运行监听端口的服务 （ 使用较多 ）
+   - 修改其他端口号
+
+5. HTTP 协议默认端口是 80 。HTTPS 协议的默认端口是 443, HTTP 服务开发常用端口有 3000，8080，8090，9000 等
+
+   > 如果端口被其他程序占用，可以使用 **资源监视器** 找到占用端口的程序，然后使用 **任务管理器** 关闭对应的程序
+
+### 8. 获取 HTTP 请求报文
+
+想要获取请求的数据，需要通过`request`对象
+
+| 含义               | 语法                                                         |
+| ------------------ | ------------------------------------------------------------ |
+| **请求方法**       | `request.method `                                            |
+| 请求版本           | `request.httpVersion`                                        |
+| **请求路径**       | `request.url `                                               |
+| **URL 路径**       | `require('url').parse(request.url).pathname `                |
+| **URL 查询字符串** | `require('url').parse(request.url, true).query `             |
+| **请求头**         | `request.headers `                                           |
+| 请求体             | `request.on('data', function(chunk){})` <br />`request.on('end', function(){});` |
+
+注意事项：
+
+1. `request.url` 只能获取路径以及查询字符串，无法获取 URL 中的域名以及协议的内容
+2. `request.headers` 将请求信息转化成一个对象，并将属性名都转化成了『小写』
+3. 关于路径：如果访问网站的时候，只填写了 IP 地址或者是域名信息，此时请求的路径为『` / `』
+4. 关于 favicon.ico：这个请求是属于浏览器自动发送的请求
+
+```js
+// 1. 导入 http 模块
+const http = require('http');
+
+// 2. 创建服务对象
+const server = http.createServer((request, response) => {
+    // 获取请求的方法
+    console.log(request.method);  // GET
+    // 获取请求的 url
+    console.log(request.url); // /favicon.ico 只包含 url 中的路径和查询字符串
+    // 获取 HTTP 协议的版本号 
+    console.log(request.httpVersion); // 1.1
+    // 获取 HTTP 请求头
+    console.log(request.headers);
+    // 获取请求头的指定属性
+    console.log(request.headers.host); // 127.0.0.1:9000
+    response.end('你好，欸嘿嘿'); // 设置响应体并结束响应
+    
+    // 获取 HTTP 请求体
+    // 1. 声明一个变量
+    let body = '';
+    // 2. 绑定 data 事件获取request流中的数据
+    request.on("data", chunk => { // request 本身就是一个可读流对象，通过data事件一点一点的将数据取出来
+        body += chunk; // chunk 是一个buffer,与字符串进行加法运算会自动将 buffer 转为 字符串
+    })
+    // 3. 绑定 end 事件 可读流中的数据全部读完后触发 end 事件
+    request.on('end', () => {
+        console.log(body); // username=4121&password=ewa
+        response.end('Hello Http') // 设置响应体并结束响应
+    })
+});
+
+// 3. 监听端口，启动服务
+server.listen(9000, () => {
+    console.log('服务已经启动...');
+})
+```
+
+**提取url路径和查询字符串例：**
+
+法一：
+
+```js
+// 1. 导入 http 模块 和 url 模块
+const http = require('http');
+const url = require('url');
+// 测试：http://localhost:9000/search?keyword=h5
+// 2. 创建服务对象
+const server = http.createServer((request, response) => {
+    console.log(request.url); //  /  /favicon.ico
+    // 解析url
+    let res = url.parse(request.url, true); // 使用第2个参数 true query属性会变成一个对象，方便操作；不加第2个参数query属性为字符串
+    console.log(res)
+    // 路径
+    let pathname = res.pathname;
+    console.log('pathname:' + pathname);
+    // 查询字符串
+    let keyword = res.query.keyword;
+    console.log(keyword); // h5
+    
+    response.end('url') // 设置响应体并结束响应
+});
+
+// 3. 监听端口，启动服务
+server.listen(9000, () => {
+    console.log('服务已经启动...');
+})
+```
+
+法二：
+
+```js
+// 1. 导入 http 模块 和 url 模块
+const http = require('http');
+// 测试：http://localhost:9000/search?keyword=h5
+// 2. 创建服务对象
+const server = http.createServer((request, response) => {
+    // 实例化 url 对象
+    // let url = new URL("http://www.xxx.com:1111/search?a=100&b=231");
+    // let url = new URL("/search?a=100&b=231", "http://www.xxx.com:1111");
+    
+    console.log(request.url); // /search?keyword=h5
+    let url = new URL(request.url, "http://www.xxx.com:1111");
+    console.log(url); // URL {...}
+    // 输出路径
+    console.log(url.pathname) // /search
+    // 输出查询字符串
+    console.log(url.searchParams.get('keyword')); // h5
+    response.end('url new') // 设置响应体并结束响应
+});
+// 3. 监听端口，启动服务
+server.listen(9000, () => {
+    console.log('服务已经启动...');
+})
+```
+
+### 9. HTTP 请求练习
+
+按照以下要求搭建 HTTP 服务
+
+| 请求类型(方法) | 请求地址 | 响应体结果 |
+| -------------- | -------- | ---------- |
+| get            | /login   | 登录页面   |
+| get            | /reg     | 注册页面   |
+
+```js
+const http = require('http');
+
+const server = http.createServer((request, response) => {
+    response.setHeader('content-type','text/html;charset=utf-8'); // 防止中文乱码
+    let url = new URL(request.url, 'http://192.168.0.1')
+    // 请求方法 这里使用解构赋值获取
+    let { method } = request;
+    console.log(url.pathname);
+    if (method === 'GET' && url.pathname === '/login') {
+        response.end('登陆页面')
+    } else if (method === 'GET' && url.pathname === "/reg") {
+        response.end('注册页面')
+    } else {
+        response.end('not find')
+    }
+})
+
+// 监听端口，启动服务
+server.listen(9000, () => {
+    console.log('服务已经启动...');
+})
+```
+
+### 10. 设置 HTTP 响应报文  
+
+| 作用             | 语法                                       |
+| ---------------- | ------------------------------------------ |
+| 设置响应状态码   | `response.statusCode`                      |
+| 设置响应状态描述 | `response.statusMessage （ 用的非常少 ）`  |
+| 设置响应头信息   | `response.setHeader('头名', '头值')`       |
+| 设置响应体       | `response.write('xx') response.end('xxx')` |
+
+```js
+// 导入 http 模块
+const http = require('http');
+
+// 创建服务对象
+const server = http.createServer((request, response) => {
+    // 1. 设置响应状态码
+    response.statusCode = 203;
+    // 2. 设置响应状态描述
+    response.statusMessage = "i love you";
+    // 3. 设置响应头
+    response.setHeader('content-type','text/html;charset=utf-8'); // 防止中文乱码
+    // response.setHeader('content-type', 'html/text');
+    // response.setHeader('Server', 'Node.js');
+    response.setHeader('myHeader', 'test test test')
+    response.setHeader('test', ['a', 'b', 'c']); // 设置多个同名响应头
+    // 4. 设置响应体
+    response.write('love'); // 设置响应体 
+    response.write('love'); // 设置响应体 
+    // response.end('response'); // 设置响应体并结束响应 返回loveloveresponse
+    response.end(); // 一般来说如果在write中设置了响应体 end中不再设置响应体
+})
+
+server.listen(9000, () => {
+    console.log('服务已经启动');
+})
+```
+
+### 11. HTTP 响应练习
+
+搭建 HTTP 服务，响应一个 4 行 3 列的表格，并且要求表格有**隔行换色**效果 ，且点击单元格能**高亮显示**  
+
+```js
+// 导入 http 模块
+const http = require('http');
+
+// 创建服务对象
+const server = http.createServer((request, response) => {
+    response.setHeader('test', ['a', 'b', 'c']); // 设置多个同名响应头
+    // 设置响应体
+    response.end(`
+        <!DOCTYPE html>
+        <html lang="en">
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Document</title>
+            <style>
+                td {
+                    padding:20px 40px;
+                }
+                /* 所有的奇数行 */
+                table tr:nth-child(odd) { 
+                    background: #aef;
+                }
+                /* 所有的偶数行 */
+                table tr:nth-child(even) {
+                    background: #fcb;
+                }
+                table, td {
+                    border-collapse: collapse
+                }
+            </style>
+        </head>
+        <body>
+            <table border = "1">
+                <tr><td></td><td></td><td></td></tr>
+                <tr><td></td><td></td><td></td></tr>
+                <tr><td></td><td></td><td></td></tr>
+                <tr><td></td><td></td><td></td></tr>
+            </table>
+            <script>
+                // 获取所有的td
+                let tds = document.querySelectorAll("td");
+                // 遍历
+                tds.forEach(item => {
+                    item.onclick = function() {
+                        this.style.background = "#222";
+                    }
+                })
+            </script>
+        </body>
+        </html>
+        `)
+})
+
+server.listen(9000, () => {
+    console.log('服务已经启动');
+})
+```
+
+### 12. 网页资源加载的基本过程
+
+网页资源的加载都是循序渐进的，首先获取 HTML 的内容， 然后解析 HTML 在发送其他资源的请求，如CSS，Javascript，图片等。 
+
+### 13. HTTP 响应练习扩展
+
+将css js html分别创建为新的文件，当需要某个资源时浏览器会发送请求找到这个资源
+
+```js
+// 导入 http 模块
+const http = require('http');
+const fs = require('fs');
+
+// 后面有优化
+// 创建服务对象
+const server = http.createServer((request, response) => {
+    // 获取请求URL的路径
+    
+    let {pathname} = new URL(request.url, 'http://192.168.0.1');
+    // let pathname = request.url
+    // 读取文件内容
+    let html = fs.readFileSync(__dirname + '/11_table.html') // 返回值是一个buffer
+    if (pathname === '/') {
+        // 读取文件内容
+        let html = fs.readFileSync(__dirname + '/11_table.html') // 返回值是一个buffer
+        // 设置响应体
+        response.end(html) // 设置响应体 end的响应体可以是字符串也可以是一个buffer
+        
+    } else if (pathname === '/11_index.css') {
+          // 读取文件内容
+          let css = fs.readFileSync(__dirname + '/11_index.css') // 返回值是一个buffer
+          // 设置响应体
+          response.end(css) // 设置响应体 end的响应体可以是字符串也可以是一个buffer
+    } else if (pathname === '/11.index.js') {
+        // 读取文件内容
+        let js = fs.readFileSync(__dirname + '/11_index.js') // 返回值是一个buffer
+        // 设置响应体
+        response.end(js) // 设置响应体 end的响应体可以是字符串也可以是一个buffer
+    } else {
+        response.statusCode = 404;
+        response.end('<h1>404 Not Found</h1>')
+    }
+})
+
+server.listen(9000, () => {
+    console.log('服务已经启动');
+})
+```
+
+### 14. 静态资源服务
+
+静态资源是指**内容长时间不发生改变的资源** ，例如图片，视频，CSS 文件，JS文件，HTML文件，字体文件等
+
+动态资源是指**内容经常更新的资源** ，例如百度首页，网易首页，京东搜索列表页面等
+
+#### 14.1 网站根目录或静态资源目录
+
+HTTP 服务在哪个文件夹中寻找静态资源，那个文件夹就是 **静态资源目录** ，也称之为 **网站根目录**
+
+> 思考：vscode 中使用 live-server 访问 HTML 时， 它启动的服务中网站根目录是谁？  
+
+#### 14.2 网页中的 URL
+
+网页中的 URL 主要分为两大类：相对路径与绝对路径
+
+##### 14.2.1 绝对路径
+
+绝对路径可靠性强，而且相对容易理解，在项目中运用较多
+
+| 形式              | 特点                                                         |
+| ----------------- | ------------------------------------------------------------ |
+| http://xxx.com/aa | 直接向目标资源发送请求，容易理解。网站的外链会用到此形式     |
+| //xxx.com/aa      | 与页面 URL 的协议拼接形成完整 URL 再发送请求。大型网站用的比较多 |
+| /aa               | 与页面 URL 的协议、主机名、端口拼接形成完整 URL 再发送请求。中小型网站 |
+
+##### 14.2.2 相对路径
+
+相对路径在发送请求时，需要与当前页面 URL 路径进行 **计算** ，得到完整 URL 后，再发送请求，学习阶段用的较多
+
+例如当前网页 url 为 http://www.xxx.com/aaa/h5.html
+
+| 形式               | 最终的 URL                         |
+| ------------------ | ---------------------------------- |
+| ./css/app.css      | http://www.xxx.com/aaa/css/app.css |
+| js/app.js          | http://www.xxx.com/aaa/js/app.js   |
+| ../img/logo.png    | http://www.xxx.com/img/logo.png    |
+| ../../mp4/show.mp4 | http://www.xxx.com/mp4/show.mp4    |
+
+##### 14.2.3 网页中使用 URL 的场景小结
+
+包括但不限于如下场景：
+
+- a 标签 
+- hreflink 标签 
+- hrefscript 标签
+- srcimg 标签 src
+- video audio 标签
+- srcform 中的 action
+- AJAX 请求中的 URL
+
+#### 14.3 设置资源类型（mime类型）
+
+媒体类型（通常称为 Multipurpose Internet Mail Extensions 或 MIME 类型 ）是一种标准，用来表示文档、文件或字节流的性质和格式。
+
+mime 类型结构：` [type]/[subType]`
+例如： `text/html` 、`text/css`、` image/jpeg`、` image/png`、`application/json`
+
+**HTTP 服务可以设置响应头` Content-Type `来表明响应体的 MIME 类型**，浏览器会根据该类型决定如何处理资源
+下面是常见文件对应的 mime 类型:
+
+| 类型 | Content-Type         |
+| ---- | -------------------- |
+| html | `'text/html'`        |
+| css  | `'text/css'`         |
+| js   | `'text/javascript'`  |
+| png  | `'image/png'`        |
+| jpg  | `'image/jpeg'`       |
+| gif  | `'image/gif'`        |
+| mp4  | `'mp4/video/mp4'`    |
+| mp3  | `'mp3/audio/mpeg'`   |
+| json | `'application/json'` |
+| xml  | `'application/xml'`  |
+
+> 对于未知的资源类型，可以选择 `application/octet-stream `类型，浏览器在遇到该类型的响应时，会对响应体内容进行独立存储，也就是我们常见的 **下载** 效果  
+
+```js
+require('http').createServer((request,response)=>{
+    //获取请求的方法已经路径
+    let {url,method} = request;
+    //判断请求方式以及请求路径
+    if(method == "GET" && url == "/index.html"){
+        //需要响应文件中的内容
+        let data = require('fs').readFileSync(__dirname + '/index.html');
+        response.end(data);
+    }else if(method == "GET" && url == "/css/app.css"){
+        //需要响应文件中的内容
+        let data = require('fs').readFileSync(__dirname + '/public/css/app.css');
+        response.end(data);
+    }else if(method == "GET" && url == "/js/app.js"){
+        //需要响应文件中的内容
+        let data = require('fs').readFileSync(__dirname + '/public/js/app.js');
+        response.end(data);
+    } else {
+        //404响应
+        response.statusCode = 404;
+        response.end("<h1>404 Not Found</h1>");
+    }
+}).listen(9000,()=>{
+	console.log('9000端口正在启动中....');
+})
+```
+
+很明显上面的代码，当只要有一个请求路径就需要进行判断，显然这种方式不够完美，那么我们需要封装  
+
+```js
+require('http').createServer((request,response)=>{
+    //获取请求的方法已经路径
+    let {url,method} = request;
+    //文件夹路径
+    let rootDir = __dirname + '/public';
+    //拼接文件路径
+    let filePath = rootDir + url;
+    //读取文件内容
+    fs.readFile(filePath,(err,data)=>{
+        //判断
+        if(err){
+            //如果出现错误，响应404状态码
+            response.statusCode = 404;
+            response.end('<h1>404 Not Found</h1>');
+        }else{
+            //响应文件内容
+            response.end(data);
+        }
+    })
+}).listen(9000,()=>{
+	console.log('9000端口正在启动中....');
+})
+```
+
+### 15 GET 和 POST 请求
+
+####  15.1 GET 和 POST 请求场景小结
+
+GET 请求的情况：
+
+- 在地址栏直接输入 url 访问
+- 点击 a 链接
+- link 标签引入 css
+- script 标签引入 js
+- img 标签引入图片
+- form 标签中的 method 为 get （不区分大小写）
+- ajax 中的 get 请求
+
+POST 请求的情况：
+
+- form 标签中的 method 为 post（不区分大小写）
+- AJAX 的 post 请求
+
+#### 15.2 GET和POST请求的区别
+
+GET 和 POST 是 HTTP 协议请求的两种方式。
+
+- GET 主要用来获取数据，POST 主要用来提交数据
+- GET 带参数请求是将参数缀到 URL 之后，在地址栏中输入 url 访问网站就是 GET 请求， POST 带参数请求是将参数放到请求体中
+- POST 请求**相对 GET 安全**一些，因为在浏览器中参数会暴露在地址栏
+- GET 请求大小有限制，一般为 2K，而 POST 请求则没有大小限制  
+
+### 16. Server 案例
+
+静态资源请求，错误处理，防止中文乱码
+
+![image-20241020180438191](./Nodejs_NoteImg/image-20241020180438191.png)
+
+`server.js`:
+
+```js
+/**
+ * 创建一个HTTP服务，端口为9000，满足如下需求
+ * GET  /index.html      响应  page/index.html 的文件内容
+ * GET  /css/app.css     响应  page/css/app.css 的文件内容
+ * GET  /images/logo.png 响应  page/images/1ogo.png 的文件内容
+ */
+
+// 导入 http 模块
+const http = require('http');
+const fs = require('fs');
+const path = require('path');
+
+// 声明一个变量
+let mimes = {  
+    html: 'text/html',  
+    css: 'text/css',  
+    js: 'application/javascript',  
+    json: 'application/json',  
+    xml: 'application/xml',  
+    png: 'image/png',  
+    jpg: 'image/jpeg',  
+    gif: 'image/gif',  
+    pdf: 'application/pdf',  
+    zip: 'application/zip'  
+};  
+
+// 创建服务对象
+const server = http.createServer((request, response) => {
+    if (request.method !== "GET") {
+        response.statusCode = 405;
+        response.end('<h1>405 Method Not Allowed</h1>')
+        return;
+    }
+    // 获取请求URL的路径
+    
+    let {pathname} = new URL(request.url, 'http://192.168.0.1');
+
+    // 优化
+    let root = __dirname + '/page' // 网站根目录
+    // 拼接文件路径
+    let filePath = root + pathname;
+    // 读取文件
+    // 读取文件内容 fs 这里异步方式
+    fs.readFile(filePath, (err, data) => {
+        if (err) {
+            response.setHeader('content-type','text/html;charset=utf-8'); // 防止中文乱码
+            switch (err.code) {
+                case "ENOENT" : // 找不到
+                    response.statusCode = 404;
+                    response.end('<h1>404 Not Found</h1>')
+                case "EPERM" : // 权限不足
+                    response.statusCode = 403;
+                    response.end('<h1>403 Forbidden</h1>')
+                default :
+                    response.statusCode = 500;
+                    response.end("<h1>Internal Server Error</h1>");
+            }
+            return;
+        }
+        // 获取文件的后缀名
+        let ext = path.extname(filePath).slice(1); // 截掉.只保留后缀
+        // 获取对应的类型
+        let type = mimes[ext];
+        if (type) {
+            // 匹配到了
+            // response.setHeader('content-type', type);
+            if (ext === 'html') {
+                response.setHeader('content-type', type + ";charset=utf-8"); // // 防止中文乱码 响应头中的字符集优先级高于html中meta标签设置的字符集
+            } else {
+                response.setHeader('content-type', type);
+            }
+        } else {
+            // 没有匹配到
+            // 对于未知的资源类型，可以选择 `application/octet-stream `类型，浏览器在遇到该类型的响应时，会对响应体内容进行独立存储，也就是我们常见的 **下载** 效果  
+            response.setHeader('content-type', 'application/octet-stream')
+        }
+        
+        // 响应文件内容
+        response.end(data)
+    })
+})
+
+server.listen(9000, () => {
+    console.log('服务已经启动');
+})
+```
+
